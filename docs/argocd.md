@@ -1,4 +1,4 @@
-rgo CD – GitOps Deployment Guide
+Argo CD – GitOps Deployment Guide
 
 Argo CD is used in this project to manage all Kubernetes deployments using a GitOps workflow.
 The idea is simple: the Git repository becomes the source of truth, and Argo CD keeps the cluster synced with what is committed to Git.
@@ -37,10 +37,6 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 namespace: argocd
-
-resources:
-  - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-
 
 To apply:
 
