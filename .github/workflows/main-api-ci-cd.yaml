@@ -1,0 +1,86 @@
+name: Main API CI/CD
+
+on:
+  push:
+    paths:
+      - "services/main-api/**"
+      - "infra/k8s/apps/main-api/**"
+      - ".github/workflows/main-api-ci-cd.yaml"
+
+jobs:
+  build-test-push-deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write      # for OIDC to AWS
+      contents: write      # to push manifest changes back
+
+    env:
+      AWS_REGION: us-west-1
+      AWS_ACCOUNT_ID: 123456
+      ECR_REPO_NAME: main-api
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-oidc-kontaxa
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Set image tag
+        id: vars
+        run: |
+          echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies for linting
+        run: |
+          cd services/main-api
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install flake8 || true
+
+      - name: Lint code
+        run: |
+          cd services/main-api
+          if command -v flake8 >/dev/null 2>&1; then flake8 . || true; fi
+
+      - name: Build Docker image
+        run: |
+          cd services/main-api
+          docker build -t $ECR_REPO_NAME:${{ steps.vars.outputs.IMAGE_TAG }} .
+
+      - name: Tag image for ECR
+        run: |
+          docker tag $ECR_REPO_NAME:${{ steps.vars.outputs.IMAGE_TAG }} \
+            $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:${{ steps.vars.outputs.IMAGE_TAG }}
+
+      - name: Push image to ECR
+        run: |
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:${{ steps.vars.outputs.IMAGE_TAG }}
+
+      - name: Update Kubernetes manifests (image + version)
+        run: |
+          IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:${{ steps.vars.outputs.IMAGE_TAG }}"
+          # Update image in deployment (any line containing 'image: ' and 'main-api')
+          sed -i "s|image: .*main-api.*|image: ${IMAGE_URI}|g" infra/k8s/apps/main-api/deployment.yaml
+          # Update app_version in configmap
+          sed -i "s|app_version:.*|app_version: \"${{ steps.vars.outputs.IMAGE_TAG }}\"|g" infra/k8s/apps/main-api/configmap.yaml
+
+      - name: Commit and push manifest changes
+        run: |
+          git config user.email "cicd@kontox.local"
+          git config user.name "Kontox CI"
+          git add infra/k8s/apps/main-api/deployment.yaml infra/k8s/apps/main-api/configmap.yaml
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update main-api to image tag ${{ steps.vars.outputs.IMAGE_TAG }}"
+            git push
+          fi
+

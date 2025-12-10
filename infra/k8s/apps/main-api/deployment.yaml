@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: main-api
+  namespace: main-api
+  labels:
+    app: main-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: main-api
+  template:
+    metadata:
+      labels:
+        app: main-api
+    spec:
+      serviceAccountName: main-api-sa
+      containers:
+        - name: main-api
+          image: <ECR_URI>/main-api:<VERSION>
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MAIN_API_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: main-api-config
+                  key: app_version
+
+            - name: APP_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: kontox-secret
+                  key: config
+                    resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+      volumes:
+        - name: kontox-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: kontox-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: main-api
+  namespace: main-api
+spec:
+  type: ClusterIP
+  selector:
+    app: main-api
+  ports:
+    - port: 8000
+      targetPort: 8000

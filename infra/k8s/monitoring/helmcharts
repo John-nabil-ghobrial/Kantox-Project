@@ -1,0 +1,13 @@
+# Add the Prometheus Community Helm repo
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+# Create the monitoring namespace (if not already created)
+kubectl apply -f infra/k8s/monitoring/namespace.yaml
+
+# Install kube-prometheus-stack (Prometheus + Grafana + exporters)
+helm install monitoring prometheus-community/kube-prometheus-stack \
+  --namespace monitoring
+
+
+kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80

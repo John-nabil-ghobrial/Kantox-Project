@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: main-api
+  namespace: main-api
+  labels:
+    app: main-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: main-api
+  template:
+    metadata:
+      labels:
+        app: main-api
+    spec:
+      serviceAccountName: main-api-sa
+      containers:
+        - name: main-api
+          # CI will replace this with ECR image URL + tag
+          image: main-api:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+
+          env:
+            - name: MAIN_API_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: main-api-config
+                  key: app_version
+
+            # Value coming from Kontox-secret (synced into K8s secret kontox-secret)
+            - name: APP_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: kontox-secret
+                  key: config
+
+            - name: AWS_REGION
+              value: "<AWS_REGION>"
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+          # OPTIONAL: if you want to read the secret as a file as well
+          volumeMounts:
+            - name: kontox-secrets
+              mountPath: /mnt/kontox
+              readOnly: true
+
+      volumes:
+        - name: kontox-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: kontox-secrets
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aux-service
+  namespace: aux-service
+  labels:
+    app: aux-service
+spec:
+  type: ClusterIP
+  selector:
+    app: aux-service
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
