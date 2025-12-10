@@ -113,7 +113,6 @@ Open IAM → Identity providers → Add provider
 
 Choose OpenID Connect
 
-Provider URL: https://token.actions.githubusercontent.com
 
 Create IAM role with trust relationship for GitHub
 
