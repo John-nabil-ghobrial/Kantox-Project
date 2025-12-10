@@ -93,7 +93,7 @@ Inside each CI/CD workflow file (main-api-ci-cd.yaml, aux-service-ci-cd.yaml), A
 - name: Configure AWS credentials
   uses: aws-actions/configure-aws-credentials@v2
   with:
-    role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/github-oidc-role
+    role-to-assume: arn:aws:iam::123456:role/github-oidc-role
     aws-region: ${{ env.AWS_REGION }}
 
 
