@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: main-api
-  namespace: main-api
+  name: aux-service
+  namespace: aux-service
   labels:
-    app: main-api
+    app: aux-service
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: main-api
+      app: aux-service
   template:
     metadata:
       labels:
-        app: main-api
+        app: aux-service
     spec:
-      serviceAccountName: main-api-sa
+      serviceAccountName: aux-service-sa
       containers:
-        - name: main-api
+        - name: aux-service
           # CI will replace this with ECR image URL + tag
-          image: main-api:dev
+          image: aux-service:dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
@@ -28,7 +28,7 @@ spec:
             - name: MAIN_API_VERSION
               valueFrom:
                 configMapKeyRef:
-                  name: main-api-config
+                  name: aux-service-config
                   key: app_version
 
             # Value coming from Kontox-secret (synced into K8s secret kontox-secret)
