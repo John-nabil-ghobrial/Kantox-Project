@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: main-api-config
-  namespace: main-api
+  name: aux-service-config
+  namespace: aux-service
 data:
   app_version: "dev"     # GitHub Actions will update this
